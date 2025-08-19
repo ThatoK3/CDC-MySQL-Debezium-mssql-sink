@@ -42,6 +42,10 @@ services:
       - CONFIG_STORAGE_TOPIC=my_connect_configs
       - OFFSET_STORAGE_TOPIC=my_connect_offsets
       - STATUS_STORAGE_TOPIC=my_connect_statuses
+    volumes: 
+      - ${PWD}/kconnect-jdbc-sink-jars:/kafka/connect/kconnect-jdbc-sink-jars
+      - ${PWD}/kconnect-s3-sink-jars:/kafka/connect/kconnect-s3-sink-jars
+      - ${PWS}/confluentic-connect-transforms:/kafka/connect/confluentic-connect-transforms
 
   schema-registry:
     image: confluentinc/cp-schema-registry:5.5.3

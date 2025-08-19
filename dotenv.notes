@@ -1,0 +1,5 @@
+MSSQL_HOST=db.rds.amazonaws.com
+MSSQL_PORT=1433
+MSSQL_DB=inventory
+MSSQL_USER=user
+MSSQL_PASSWORD="passWithSpecialChars"
