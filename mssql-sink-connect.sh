@@ -39,7 +39,7 @@ for connector in "${connectors[@]}"; do
     fi
 done
 
-echo "Registering MSSQL Sink Connectors..."
+echo "Registering MSSQL Sink Connectors with Avro..."
 
 # Function to register connector with error checking
 register_connector() {
@@ -65,12 +65,18 @@ register_connector() {
           "insert.mode": "upsert",
           "pk.mode": "record_key",
           "pk.fields": "'"$pk_field"'",
+
           "transforms": "unwrap,dropPrefix",
           "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
           "transforms.unwrap.drop.tombstones": "true",
           "transforms.dropPrefix.type": "org.apache.kafka.connect.transforms.RegexRouter",
           "transforms.dropPrefix.regex": "dbserver1\\.inventory\\.(.*)",
-          "transforms.dropPrefix.replacement": "$1"
+          "transforms.dropPrefix.replacement": "$1",
+
+          "key.converter": "io.confluent.connect.avro.AvroConverter",
+          "key.converter.schema.registry.url": "http://schema-registry:8081",
+          "value.converter": "io.confluent.connect.avro.AvroConverter",
+          "value.converter.schema.registry.url": "http://schema-registry:8081"
         }
       }')
     
@@ -105,3 +111,4 @@ for connector in "${connectors[@]}"; do
 done
 
 echo "Setup completed!"
+
