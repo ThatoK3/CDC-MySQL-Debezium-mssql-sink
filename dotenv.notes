@@ -1,5 +1,12 @@
-MSSQL_HOST=db.rds.amazonaws.com
+MSSQL_HOST=
 MSSQL_PORT=1433
 MSSQL_DB=inventory
-MSSQL_USER=user
-MSSQL_PASSWORD="passWithSpecialChars"
+MSSQL_USER=..
+MSSQL_PASSWORD="pass"
+
+
+AWS_ACCESS_KEY_ID=""
+AWS_SECRET_ACCESS_KEY=""
+AWS_REGION=us-east-1
+S3_BUCKET=mlops-dbz-sink
+SCHEMA_REGISTRY_URL=http://schema-registry:8081

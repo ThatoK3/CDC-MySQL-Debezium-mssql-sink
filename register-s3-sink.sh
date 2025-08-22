@@ -57,7 +57,7 @@ response=$(curl -s -o response.json -w "%{http_code}" -X POST http://localhost:8
 
       "format.class": "io.confluent.connect.s3.format.avro.AvroFormat",
       "storage.class": "io.confluent.connect.s3.storage.S3Storage",
-      "flush.size": "1000",
+      "flush.size": "512",
       "rotate.interval.ms": "600000",
 
       "schema.compatibility": "NONE",
