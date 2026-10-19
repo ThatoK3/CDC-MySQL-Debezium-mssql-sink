@@ -11,7 +11,7 @@ CREATE TABLE CDC_IN.NOTE (
     username nvarchar(100) NULL, notes nvarchar(max) NULL, load_date nvarchar(40) NULL, applied_at datetime2(0) NOT NULL DEFAULT SYSDATETIME());
 CREATE TABLE CDC_IN.ASSIGNMENT (
     outbox_id bigint NOT NULL PRIMARY KEY, eligibility_id bigint NOT NULL, programme_code int NULL, staged_at nvarchar(40) NULL,
-    assignee_entity_no bigint NOT NULL, assigned_by_entity_no bigint NULL, load_date nvarchar(40) NULL, assignment_batch_no bigint NOT NULL, applied_at datetime2(0) NOT NULL DEFAULT SYSDATETIME());
+    assignee_entity_no bigint NULL, assigned_by_entity_no bigint NULL, load_date nvarchar(40) NULL, assignment_batch_no bigint NOT NULL, applied_at datetime2(0) NOT NULL DEFAULT SYSDATETIME());
 CREATE TABLE CDC_IN.FIELD (
     outbox_id bigint NOT NULL PRIMARY KEY, eligibility_id bigint NOT NULL, programme_code int NULL, staged_at nvarchar(40) NULL,
     field_name nvarchar(100) NOT NULL, field_value nvarchar(1000) NULL, load_date nvarchar(40) NULL, field_control_batch_no bigint NOT NULL, applied_at datetime2(0) NOT NULL DEFAULT SYSDATETIME());
@@ -33,7 +33,7 @@ END;
 GO
 CREATE OR ALTER TRIGGER CDC_IN.TR_ASSIGNMENT ON CDC_IN.ASSIGNMENT AFTER INSERT AS
 BEGIN
-    SET NOCOUNT ON;     -- ASSIGNMENT_BATCH_NO >= 9,000,000,000 marks the row as written by the platform, so its own sync does not import it back
+    SET NOCOUNT ON;     -- A NULL assignee is an unassignment. ASSIGNMENT_BATCH_NO >= 9,000,000,000 marks the row as written by the platform, so its own sync does not import it back
     INSERT INTO ML_CONFIG.PROGRAMME_ASSIGNMENT (PROGRAMME_ELIGIBILITY_ID, PROGRAMME_CODE, ASSIGNEE_ENTITY_NO, ASSIGNED_BY_ENTITY_NO, LOAD_DATE, ASSIGNMENT_BATCH_NO)
     SELECT eligibility_id, programme_code, assignee_entity_no, assigned_by_entity_no, CDC_IN.LOCAL_TIME(load_date), assignment_batch_no FROM inserted ORDER BY outbox_id;
 END;
