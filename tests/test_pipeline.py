@@ -257,14 +257,20 @@ class AppTables(unittest.TestCase):
         for name, (group, cfg) in connectctl.render(ENV)[0].items():
             if "query" in cfg:
                 where = cfg["query"].upper().split(" WHERE ", 1)[-1] if " WHERE " in cfg["query"].upper() else ""
-                self.assertNotIn("SYS_EFF_TO", where, name)
-                self.assertNotIn("SYS_EFF_FROM >", where.replace("SYS_EFF_FROM >=", "") if "enrol_healthid" not in name else "", name)
+                if "enrol_healthid" not in name:      # HealthID's warehouse is the one place the version window is how "current" is defined (RuleEngine does the same)
+                    self.assertNotIn("SYS_EFF_TO", where, name)
+                    self.assertNotIn("SYS_EFF_FROM", where, name)
 
     def test_the_hash_key_of_keyless_sources_covers_every_value_so_a_repeat_changes_nothing(self):
         wf = connectctl.render(ENV)[0]["mlp-src-enrol_workflow"][1]["query"]
         self.assertIn("HASHBYTES('SHA2_256'", wf)
         for col in ("[Programme status]", "[Call Attempt Outcome]", "DATE_COMPLETED_SKEY", "ENTITY_NO"):
             self.assertIn(col, wf.split("HASHBYTES")[1])
+
+    def test_healthid_reads_only_the_versions_in_effect_now_like_the_rule_engine(self):
+        q = connectctl.render(ENV)[0]["mlp-src-enrol_healthid"][1]["query"]
+        for alias in ("k", "p", "s"):
+            self.assertIn(f"GETDATE() BETWEEN {alias}.SYS_EFF_FROM AND {alias}.SYS_EFF_TO", q)
 
     def test_no_personal_identifiers_are_in_any_query(self):
         text = json.dumps(connectctl.render(ENV)[0])

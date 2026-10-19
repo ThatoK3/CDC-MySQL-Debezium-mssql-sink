@@ -34,7 +34,7 @@ lead that stops being current. `landing.finish_reconcile()` marks current leads 
 ## The app's own tables and the enrolment events
 
 The design export's appendix A tables are all in `spec.READS`: the configuration tables are small and read whole in every window; `BATCH_EXECUTION` (~1.5M rows) and the notification control table for a recent window
-only; `PROGRAMME_FIELD_CONTROL` (~795k) by `ID` inside the retention window. **`SYS_EFF_FROM` / `SYS_EFF_TO` are application-managed, not temporal columns: no query filters on them** (the design export §5.3).
+only; `PROGRAMME_FIELD_CONTROL` (~795k) by `ID` inside the retention window. **On the lead tables `SYS_EFF_FROM` / `SYS_EFF_TO` are application-managed, not temporal columns: no lead or config query filters on them** (the design export §5.3). The one exception is HealthID's own warehouse (PSTAGING), where RuleEngine's `sql/healthID.sql` selects the row versions in effect now (`GETDATE() BETWEEN SYS_EFF_FROM AND SYS_EFF_TO` on cohort, pathway and status) so superseded corrections are not reported; the connector does the same.
 
 Enrolment sources (`group="enrolment"`) are the only connectors left running: PHP by `LOAD_DATE` + `ROW_ID`; Workflow has no key and only a day (`DATE_COMPLETED_SKEY`), so the last `ENROL_FEED_DAYS` (3) are re-read and every row's key
 is a SHA-256 of its values (a repeat is a no-op); HealthID's cohort + pathway + status join is flattened into `WH_HS_RECOMMENDER__HEALTHID_STATUS`, versioned by `SYS_EFF_FROM`. The yearly Excel imports (`[COACHING 2026]`,

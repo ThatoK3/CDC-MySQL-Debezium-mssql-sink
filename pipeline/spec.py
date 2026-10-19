@@ -133,7 +133,9 @@ READS += [
                 + HASH.format(cols="p.ENTITY_NO, p.PATHWAY_ID, s.STATUS_TYPE, s.BUS_EFF_FROM") +
                 " FROM ${HEALTHID_DATABASE}.WH_HS_RECOMMENDER.COHORT k INNER JOIN ${HEALTHID_DATABASE}.WH_HS_RECOMMENDER.PATHWAY p ON k.ENTITY_NO = p.ENTITY_NO AND p.CONTEXT_TYPE = 'COACHING' "
                 "INNER JOIN ${HEALTHID_DATABASE}.WH_HS_RECOMMENDER.PATHWAY_STATUS s ON p.PATHWAY_ID = s.PATHWAY_ID "
-                "WHERE k.COHORT_NAME LIKE '%COACHING%' AND s.BUS_EFF_FROM >= DATEADD(day, -${RETENTION_DAYS}, CAST(GETDATE() AS date))"),
+                "WHERE k.COHORT_NAME LIKE '%COACHING%' AND s.BUS_EFF_FROM >= DATEADD(day, -${RETENTION_DAYS}, CAST(GETDATE() AS date)) "
+                # as RuleEngine's sql/healthID.sql: only the row versions in effect now (the warehouse keeps superseded corrections)
+                "AND GETDATE() BETWEEN k.SYS_EFF_FROM AND k.SYS_EFF_TO AND GETDATE() BETWEEN p.SYS_EFF_FROM AND p.SYS_EFF_TO AND GETDATE() BETWEEN s.SYS_EFF_FROM AND s.SYS_EFF_TO"),
          note="The HealthID pathway status versions, flattened (cohort + pathway + status) so one table carries them; a new version appears with a new SYS_EFF_FROM."),
 ]
 for _n, _tbl, _col in (("enrol_excel_coaching", "${EXCEL_COACHING_TABLE}", "[Programme Status]"), ("enrol_excel_enrollments", "${EXCEL_ENROLLMENTS_TABLE}", "[Attempt Outcome]")):
