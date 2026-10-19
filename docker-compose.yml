@@ -1,0 +1,61 @@
+# The CDC environment for the ML Leads platform. SQL Server and the platform's PostgreSQL are NOT part of this stack — they are reached through .env.
+#   docker compose up -d                       Kafka, Kafka Connect (Debezium + JDBC), the scheduler
+#   docker compose --profile dev up -d         ... plus a throw-away PostgreSQL with logical WAL for trying it without the real database
+# Untested against live SQL Server: see docs/design.md "What has not been run".
+services:
+  kafka:
+    image: apache/kafka:3.8.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_RETENTION_HOURS: 168        # note text travels through Kafka: keep a week, no more
+    volumes: [kafka:/var/lib/kafka/data]
+    healthcheck: {test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"], interval: 10s, retries: 12}
+
+  connect:
+    image: quay.io/debezium/connect:2.7.3.Final
+    depends_on: {kafka: {condition: service_healthy}}
+    ports: ["8083:8083"]
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: mlp-connect
+      CONFIG_STORAGE_TOPIC: mlp_connect_configs
+      OFFSET_STORAGE_TOPIC: mlp_connect_offsets
+      STATUS_STORAGE_TOPIC: mlp_connect_statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+    volumes:
+      # Confluent's JDBC connector (source and sink) with its drivers. Replace lib/mssql-jdbc-8.4.1.jre8.jar with a current 12.x driver if the server needs newer TLS.
+      - ./kconnect-jdbc-sink-jars/confluentinc-kafka-connect-jdbc-10.8.4:/kafka/connect/kafka-connect-jdbc:ro
+    healthcheck: {test: ["CMD-SHELL", "curl -fs http://localhost:8083/ >/dev/null"], interval: 10s, retries: 12}
+
+  scheduler:
+    build: {context: ., dockerfile: Dockerfile.scheduler}
+    depends_on: {connect: {condition: service_healthy}}
+    env_file: [.env]
+    environment:
+      CONNECT_URL: http://connect:8083
+      KAFKA_BOOTSTRAP: kafka:9092
+      TZ: ${TZ:-Africa/Johannesburg}
+    restart: unless-stopped
+    command: sh -c "python -m pipeline.connectctl apply && python -m pipeline.scheduler"
+
+  postgres:
+    profiles: [dev]
+    image: postgres:17
+    environment: {POSTGRES_USER: mlp, POSTGRES_PASSWORD: mlp, POSTGRES_DB: mlp}
+    command: postgres -c wal_level=logical -c max_replication_slots=10 -c max_wal_senders=10
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data, ./sql/postgres/landing.sql:/docker-entrypoint-initdb.d/10-landing.sql:ro]
+volumes:
+  kafka:
+  pgdata:
