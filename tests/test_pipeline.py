@@ -247,9 +247,9 @@ class AppTables(unittest.TestCase):
 
     def test_enrolment_sources_are_always_on_and_poll_every_five_minutes_the_rest_wait_for_the_windows(self):
         connectors, _ = connectctl.render(ENV)
-        for n in ("enrol_php", "enrol_workflow", "enrol_healthid"):
+        for n, ms in (("enrol_php", "600000"), ("enrol_workflow", "600000"), ("enrol_healthid", "300000")):        # HealthID is eventful; the ML_STAGE tables are batch-filled
             group, cfg = connectors[f"mlp-src-{n}"]
-            self.assertEqual((group, cfg["poll.interval.ms"]), ("enrolment", "300000"))
+            self.assertEqual((group, cfg["poll.interval.ms"]), ("enrolment", ms))
         self.assertNotIn("enrolment", connectctl.READ_GROUPS)                       # applied running, not paused
         self.assertEqual(connectors["mlp-src-cfg_programme"][1]["poll.interval.ms"], "86400000")
 

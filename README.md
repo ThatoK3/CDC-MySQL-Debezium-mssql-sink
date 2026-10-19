@@ -28,7 +28,7 @@ What is read (all into `landing.*`, same names the platform asks for):
 |---|---|---|
 | `load` | eligibility history, members, notes, assignments, staff, roles, **the app's configuration** (`PROGRAMME`, `SUB_PROGRAMME`, `PROGRAMME_CONDITION/SCHEME/DEMOGRAPHIC`, `PROGRAMME_FIELD`, notification config, `BATCH`, `BATCH_STATUS`, recent `BATCH_EXECUTION` and notification control), `PROGRAMME_FIELD_CONTROL` | the scheduled windows |
 | `daily` | the status/rank reconcile, the yearly Excel imports | first window of the day |
-| `enrolment` | **PHP, Workflow, HealthID** (flattened) | always on, polled every `ENROL_POLL_MS` (5 min) — small reads of the last few days |
+| `enrolment` | **PHP, Workflow, HealthID** (flattened) | always on: HealthID every 5 min (`ENROL_POLL_MS`), PHP and Workflow every 10 min (`ENROL_STAGE_POLL_MS`; their ML_STAGE tables are refilled in batches) — small reads of the last few days |
 
 Details, decisions and what has **not** been run yet: [docs/design.md](docs/design.md).
 

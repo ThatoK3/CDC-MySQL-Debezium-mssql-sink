@@ -158,7 +158,8 @@ def read_source(r, prefix="mlp"):
         "db.timezone": "${DB_TIMEZONE}", "validate.non.null": "false", "numeric.mapping": "best_fit", **CONVERTERS,
     }
     if r.group == "enrolment":
-        cfg["poll.interval.ms"] = "${ENROL_POLL_MS}"                # always on, polled every few minutes: small indexed-by-date reads, a few days at most
+        # always on. HealthID's tables are eventful: every few minutes. The ML_STAGE tables are refilled by batch pipelines (a few times a day, more as programmes are added): a longer poll
+        cfg["poll.interval.ms"] = "${ENROL_POLL_MS}" if r.name == "enrol_healthid" else "${ENROL_STAGE_POLL_MS}"
     elif r.mode == "bulk":
         cfg["poll.interval.ms"] = "86400000"                        # one pass per resume; the scheduler pauses it when it is idle
     else:
@@ -259,7 +260,7 @@ def env_values(env=None):
     d = {
         "RETENTION_DAYS": str(days), "PROGRAMME_FILTER": f"AND PROGRAMME_CODE IN ({codes})" if codes else "",
         "TIMESTAMP_INITIAL_MS": str(int((time.time() - days * 86400) * 1000)), "BATCH_MAX_ROWS": "5000", "POLL_INTERVAL_MS": "2000", "SETTLE_MS": "60000",
-        "ENROL_POLL_MS": "300000", "ENROL_FEED_DAYS": "3", "HEALTHID_DATABASE": "PSTAGING", "EXCEL_COACHING_TABLE": "[COACHING 2026]", "EXCEL_ENROLLMENTS_TABLE": "[ENROLLMENTS 2026]",
+        "ENROL_POLL_MS": "300000", "ENROL_STAGE_POLL_MS": "600000", "ENROL_FEED_DAYS": "3", "HEALTHID_DATABASE": "PSTAGING", "EXCEL_COACHING_TABLE": "[COACHING 2026]", "EXCEL_ENROLLMENTS_TABLE": "[ENROLLMENTS 2026]",
         "DB_TIMEZONE": "Africa/Johannesburg", "MSSQL_PORT": "1433", "MSSQL_ENCRYPT": "true", "MSSQL_TRUST_CERT": "false",
         "LANDING_PORT": "5432", "APP_PG_PORT": "5432", "WRITEBACK_SLOT": "mlp_writeback", "WRITEBACK_PUBLICATION": "mlp_writeback",
     }
