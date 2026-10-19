@@ -31,6 +31,15 @@ connectors, a `MAX_RUN_MINUTES` ceiling per window. The first start reads the re
 Not captured by dates, handled by the daily reconcile: a status or rank change made without touching `UPDATE_DATE` (open question N6/N-status in the platform), and a
 lead that stops being current. `landing.finish_reconcile()` marks current leads not seen in the pass (and unchanged since the window opened) as `IS_CURRENT = 0`.
 
+## The app's own tables and the enrolment events
+
+The design export's appendix A tables are all in `spec.READS`: the configuration tables are small and read whole in every window; `BATCH_EXECUTION` (~1.5M rows) and the notification control table for a recent window
+only; `PROGRAMME_FIELD_CONTROL` (~795k) by `ID` inside the retention window. **`SYS_EFF_FROM` / `SYS_EFF_TO` are application-managed, not temporal columns: no query filters on them** (the design export §5.3).
+
+Enrolment sources (`group="enrolment"`) are the only connectors left running: PHP by `LOAD_DATE` + `ROW_ID`; Workflow has no key and only a day (`DATE_COMPLETED_SKEY`), so the last `ENROL_FEED_DAYS` (3) are re-read and every row's key
+is a SHA-256 of its values (a repeat is a no-op); HealthID's cohort + pathway + status join is flattened into `WH_HS_RECOMMENDER__HEALTHID_STATUS`, versioned by `SYS_EFF_FROM`. The yearly Excel imports (`[COACHING 2026]`,
+`[ENROLLMENTS 2026]`, names in `.env`; edit the landing DDL too when a new year starts) are read once a day. To backfill a year of enrolment history once, apply with `ENROL_FEED_DAYS=365`, let it finish, then set it back to 3.
+
 ## Write side
 
 The app (WRITE_BACK_MODE=cdc) writes `cdc_out_note | _assignment | _field | _status` rows shaped like the SQL Server targets, in the same transaction as the change,

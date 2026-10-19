@@ -7,7 +7,7 @@
   delete [--group G]
   check                  verify the environment has every value the configurations need
 
-Groups: load (every scheduled load), daily (first load of the day), sink (landing sinks, always on), writeback (PostgreSQL -> SQL Server, always on).
+Groups: load (every scheduled load), daily (first load of the day), enrolment (HealthID/PHP/Workflow, always on, polled every ENROL_POLL_MS), sink (landing sinks, always on), writeback (PostgreSQL -> SQL Server, always on).
 Read-side sources are applied PAUSED so SQL Server is only touched at the scheduled times.
 """
 import argparse
@@ -23,7 +23,7 @@ from . import spec
 
 PLACEHOLDER = re.compile(r"\$\{([A-Z0-9_]+)\}")
 SECRET = re.compile(r"password|secret", re.I)
-GROUPS = ("load", "daily", "sink", "writeback")
+GROUPS = ("load", "daily", "enrolment", "sink", "writeback")
 READ_GROUPS = ("load", "daily")
 
 

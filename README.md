@@ -22,6 +22,14 @@ ML_CONFIG.PROGRAMME_NOTES / _ASSIGNMENT / _FIELD_CONTROL  and  EXEC ML_LEAD.PRC_
   upsert them into the SQL Server inbox keyed by `outbox_id` (so redelivery cannot duplicate a note) and DBA-owned triggers perform the real INSERT / procedure
   call. The connector's login can write nothing but the inbox.
 
+What is read (all into `landing.*`, same names the platform asks for):
+
+| Group | Tables | When |
+|---|---|---|
+| `load` | eligibility history, members, notes, assignments, staff, roles, **the app's configuration** (`PROGRAMME`, `SUB_PROGRAMME`, `PROGRAMME_CONDITION/SCHEME/DEMOGRAPHIC`, `PROGRAMME_FIELD`, notification config, `BATCH`, `BATCH_STATUS`, recent `BATCH_EXECUTION` and notification control), `PROGRAMME_FIELD_CONTROL` | the scheduled windows |
+| `daily` | the status/rank reconcile, the yearly Excel imports | first window of the day |
+| `enrolment` | **PHP, Workflow, HealthID** (flattened) | always on, polled every `ENROL_POLL_MS` (5 min) — small reads of the last few days |
+
 Details, decisions and what has **not** been run yet: [docs/design.md](docs/design.md).
 
 ## Start

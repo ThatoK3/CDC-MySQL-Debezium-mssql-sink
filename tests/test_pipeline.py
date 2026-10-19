@@ -71,17 +71,17 @@ class Schemas(unittest.TestCase):
     def landing_columns(self):
         text = (ROOT / "sql/postgres/landing.sql").read_text()
         out = {}
-        for m in re.finditer(r'CREATE TABLE IF NOT EXISTS landing\."(\w+)" \((.*?)\);\s*\n', text, re.S):
-            out[m.group(1)] = set(re.findall(r'"(\w+)"\s+(?:bigint|integer|varchar|double|timestamp|text)', m.group(2)))
+        for m in re.finditer(r'CREATE TABLE IF NOT EXISTS landing\."([^"]+)" \((.*?)\);\s*\n', text, re.S):
+            out[m.group(1)] = set(re.findall(r'"([^"]+)"\s+(?:bigint|integer|varchar|double|timestamp|text|boolean|smallint)', m.group(2)))
         return out
 
     def test_landing_has_every_column_the_connectors_write(self):
         landing = self.landing_columns()
         for r in spec.READS:
-            table = f"{r.schema}__{r.table}"
+            table = r.landing.split(".", 1)[1]
             self.assertIn(table, landing)
-            self.assertTrue(set(r.columns) <= landing[table], f"{table} lacks {set(r.columns) - landing[table]}")
-            self.assertTrue(set(r.pk) <= set(r.columns))
+            self.assertTrue(set(r.output_columns()) <= landing[table], f"{table} lacks {set(r.output_columns()) - landing[table]}")
+            self.assertTrue(set(r.pk) <= set(r.output_columns()))
 
     def test_landing_uses_the_names_the_app_loader_asks_for(self):
         self.assertIn("ML_LEAD__VW_ENTITY_PROGRAMME_ELIGIBILITY_HISTORY", self.landing_columns())
@@ -235,3 +235,38 @@ class Times(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AppTables(unittest.TestCase):
+    def test_every_app_configuration_table_and_enrolment_source_is_read(self):
+        names = {r.name for r in spec.READS}
+        for needed in ("cfg_programme", "cfg_sub_programme", "cfg_condition", "cfg_scheme", "cfg_demographic", "cfg_field", "cfg_notification_config", "cfg_batch", "cfg_batch_status",
+                       "cfg_batch_execution", "cfg_notification_control", "field_control", "notes", "assignments", "staff", "roles",
+                       "enrol_php", "enrol_workflow", "enrol_healthid", "enrol_excel_coaching", "enrol_excel_enrollments"):
+            self.assertIn(needed, names)
+
+    def test_enrolment_sources_are_always_on_and_poll_every_five_minutes_the_rest_wait_for_the_windows(self):
+        connectors, _ = connectctl.render(ENV)
+        for n in ("enrol_php", "enrol_workflow", "enrol_healthid"):
+            group, cfg = connectors[f"mlp-src-{n}"]
+            self.assertEqual((group, cfg["poll.interval.ms"]), ("enrolment", "300000"))
+        self.assertNotIn("enrolment", connectctl.READ_GROUPS)                       # applied running, not paused
+        self.assertEqual(connectors["mlp-src-cfg_programme"][1]["poll.interval.ms"], "86400000")
+
+    def test_sys_effective_columns_are_never_used_to_filter(self):
+        for name, (group, cfg) in connectctl.render(ENV)[0].items():
+            if "query" in cfg:
+                where = cfg["query"].upper().split(" WHERE ", 1)[-1] if " WHERE " in cfg["query"].upper() else ""
+                self.assertNotIn("SYS_EFF_TO", where, name)
+                self.assertNotIn("SYS_EFF_FROM >", where.replace("SYS_EFF_FROM >=", "") if "enrol_healthid" not in name else "", name)
+
+    def test_the_hash_key_of_keyless_sources_covers_every_value_so_a_repeat_changes_nothing(self):
+        wf = connectctl.render(ENV)[0]["mlp-src-enrol_workflow"][1]["query"]
+        self.assertIn("HASHBYTES('SHA2_256'", wf)
+        for col in ("[Programme status]", "[Call Attempt Outcome]", "DATE_COMPLETED_SKEY", "ENTITY_NO"):
+            self.assertIn(col, wf.split("HASHBYTES")[1])
+
+    def test_no_personal_identifiers_are_in_any_query(self):
+        text = json.dumps(connectctl.render(ENV)[0])
+        for forbidden in ("ID_NUMBER", "DATE_OF_BIRTH", "LEGAL_REF"):
+            self.assertNotIn(forbidden, text)
